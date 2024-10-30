@@ -3,7 +3,8 @@
 use methods::{
     PARTIAL_ZK_RA_ELF, PARTIAL_ZK_RA_ID
 };
-use risc0_zkvm::{default_prover, ExecutorEnv};
+use risc0_zkvm::{default_prover, LocalProver, ExecutorEnv, ExecutorImpl, Prover};
+use borsh::{BorshSerialize, BorshDeserialize, from_slice, to_vec};
 
 fn main() {
     // Initialize tracing. In order to view logs, run `RUST_LOG=info cargo run`
@@ -24,15 +25,16 @@ fn main() {
     // ExecutorEnvBuilder::build().
 
     // For example:
-    let input: u32 = 15 * u32::pow(2, 27) + 1;
+    
+    let input = std::fs::read("./secrets/docker-compose.yaml").expect("error reading file");
     let env = ExecutorEnv::builder()
-        .write(&input)
-        .unwrap()
+        .write_slice(&input)
         .build()
         .unwrap();
 
     // Obtain the default prover.
-    let prover = default_prover();
+    println!("start to prove");
+    let prover = LocalProver::new("prover");
 
     // Proof information by proving the specified ELF binary.
     // This struct contains the receipt along with statistics about execution of the guest
@@ -43,10 +45,13 @@ fn main() {
     // extract the receipt.
     let receipt = prove_info.receipt;
 
-    // TODO: Implement code for retrieving receipt journal here.
+    let seralized_receipt = to_vec(&receipt).unwrap();
+    std::fs::write("./proof.bin", &seralized_receipt)
+        .expect("failed to write proof");
 
     // For example:
-    let _output: u32 = receipt.journal.decode().unwrap();
+    let output: u8 = receipt.journal.decode().unwrap();
+    println!("got output: {output}");
 
     // The receipt was verified at the end of proving, but the below code is an
     // example of how someone else could verify this receipt.
